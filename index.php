@@ -4,12 +4,13 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Index - Raven Fire Protection</title>
+  <title>Raven Fire Protection</title>
   <meta name="description" content="Raven Fire Protection - Safety First">
   <meta name="keywords" content="fire protection, safety, alarms, extinguishers, Raven">
 
+  <!-- FIXME: Add dark and light mode support -->
   <!-- Favicons -->
-  <link href="assets/img/favicon.png" rel="icon">
+  <link href="assets/img/logo.png" rel="icon">
   <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
 
   <!-- Fonts -->
