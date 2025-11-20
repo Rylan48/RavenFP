@@ -165,19 +165,37 @@ h6 {
 }
 
 .header .logo {
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  line-height: 1.2;
 }
 
 .header .logo img {
-  max-height: 36px;
-  margin-right: 8px;
+  height: 50px;          /* the header still treats it as 50px tall */
+  width: auto;
+  transform: scale(1.4); /* makes it appear 40% larger */
+  transform-origin: center; /* keeps it centered */
+  padding-left: 10px;
+}
+
+@media (max-width: 1200px) {
+  .header .logo img {
+    max-width: 120px;  /* prevents stretching */
+    height: auto;
+    transform: none;   /* removes desktop zoom */
+  }
+
+  .header .logo {
+    justify-content: flex-start; /* keep logo on the left */
+  }
 }
 
 .header .logo h1 {
-  font-size: 30px;
+  font-size: 2.2rem; /* about 35px by default */
   margin: 0;
   font-weight: 700;
-  color: var(--heading-color);
+  color: var(--heading-color, #fff);
+  letter-spacing: 0.5px; /* small polish */
 }
 
 .header .header-social-links .emergency-call-line {
@@ -252,7 +270,7 @@ h6 {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .header .header-social-links .emergency-call-line {
     font-size: 16px;           /* smaller base font */
     padding: 0 15px;           /* smaller horizontal padding */
@@ -887,6 +905,23 @@ section,
   color: var(--heading-color);
 }
 
+.hero-logo {
+  width: auto;
+  max-width: 900px;
+  height: auto;
+  max-height: 200px;
+  margin: 0.5em 0;
+  object-fit: contain;
+  filter: none;
+}
+
+@media (max-width: 1200px) {
+  .hero-logo {
+    max-width: 120%;
+    max-height: 150px;
+  }
+}
+
 /* Hero Button Container */
 .hero .btn-container {
   display: inline-grid;
@@ -947,7 +982,7 @@ section,
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .hero h2 {
     font-size: 32px;
   }
@@ -1193,9 +1228,41 @@ section,
   font-size: 14px;
 }
 
+.services .service-item .note {
+  font-size: 0.85rem;  /* small */
+  font-style: italic;  /* italic */
+  opacity: 0.8;        /* slightly softer */
+  margin-top: 0.5rem;
+}
 /*--------------------------------------------------------------
 # Contact Section
 --------------------------------------------------------------*/
+.contact-heading {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--heading-color);
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.contact-heading a {
+  color: var(--accent-color);
+  text-decoration: underline;
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+.contact-heading a:hover {
+  color: color-mix(in srgb, var(--accent-color), transparent 20%);
+}
+
+@media (max-width: 768px) {
+  .contact-heading {
+    font-size: 1.2rem;
+    text-align: center;
+  }
+}
+
 .contact .info-item+.info-item {
   margin-top: 40px;
 }
