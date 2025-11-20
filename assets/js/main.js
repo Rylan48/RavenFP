@@ -204,4 +204,30 @@
   window.addEventListener('load', navmenuScrollspy);
   document.addEventListener('scroll', navmenuScrollspy);
 
+  // Smooth scroll to section for all same-page/hash links
+  document.querySelectorAll('a[href^="#"]').forEach(link => {
+    link.addEventListener('click', function (e) {
+      const targetId = this.getAttribute('href').substring(1);
+      const target = document.getElementById(targetId);
+
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Remove hash from the URL (so it doesn’t persist after refresh)
+        history.replaceState(null, null, window.location.pathname);
+
+        // If mobile nav is open, close it after clicking
+        if (document.querySelector('.mobile-nav-active')) {
+          document.body.classList.remove('mobile-nav-active');
+          const toggle = document.querySelector('.mobile-nav-toggle');
+          if (toggle) {
+            toggle.classList.toggle('bi-list');
+            toggle.classList.toggle('bi-x');
+          }
+        }
+      }
+    });
+  });
+
 })();
