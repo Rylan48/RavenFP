@@ -1,0 +1,7 @@
+{
+    "require": {
+        "phpmailer/phpmailer": "^7.1",
+        "league/oauth2-client": "^2.9",
+        "thenetworg/oauth2-azure": "^2.2"
+    }
+}

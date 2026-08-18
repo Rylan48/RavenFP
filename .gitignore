@@ -1,0 +1,12 @@
+.env
+.env.*
+mail-config.local.php
+submissions/
+service-details.html
+starter-page.html
+blog-details.html
+blog.html
+services/
+vendor/
+forms/mail-send-test.php
+forms/mail-test.php
