@@ -10,8 +10,12 @@ require_once __DIR__ . '/mailer.php';
 /*
  * JSON response helper.
  */
-function respond(bool $success, string $message, int $status = 200): never
-{
+function respond(
+    bool $success,
+    string $message,
+    int $status = 200
+): never {
+
     http_response_code($status);
 
     echo json_encode([
@@ -77,9 +81,6 @@ $details = clean((string)($_POST['details'] ?? ''));
 
 /*
  * Required fields.
- *
- * These match the fields that are actually required
- * in the HTML form.
  */
 $required = [
     'service' => $service,
@@ -98,7 +99,7 @@ $required = [
 
 
 /*
- * Check standard required fields.
+ * Check required fields.
  */
 foreach ($required as $field => $value) {
 
@@ -115,8 +116,6 @@ foreach ($required as $field => $value) {
 /*
  * Residential projects must specify
  * Single Family or Multi Family.
- *
- * Commercial projects do not need residence_type.
  */
 if ($propertyType === 'Residential' && $residenceType === '') {
 
@@ -142,7 +141,7 @@ if (!in_array($propertyType, ['Residential', 'Commercial'], true)) {
 
 
 /*
- * Validate residence type when applicable.
+ * Validate residence type.
  */
 if (
     $propertyType === 'Residential' &&
@@ -212,12 +211,6 @@ if (!in_array($well, ['Yes', 'No'], true)) {
 
 
 /*
- * Email destination.
- */
-$to = $config['recipient'];
-
-
-/*
  * Email subject.
  */
 $subject =
@@ -281,111 +274,121 @@ TEXT;
 
 
 /*
- * Send through Microsoft OAuth / PHPMailer.
+ * Prepare attachments.
+ */
+$attachments = [];
+
+if (
+    isset($_FILES['attachments']) &&
+    isset($_FILES['attachments']['name']) &&
+    is_array($_FILES['attachments']['name'])
+) {
+
+    $count = count($_FILES['attachments']['name']);
+
+    for ($i = 0; $i < $count; $i++) {
+
+        /*
+         * No file selected.
+         */
+        if (
+            ($_FILES['attachments']['error'][$i] ?? UPLOAD_ERR_NO_FILE)
+            === UPLOAD_ERR_NO_FILE
+        ) {
+            continue;
+        }
+
+
+        /*
+         * Ignore failed uploads.
+         */
+        if (
+            ($_FILES['attachments']['error'][$i] ?? null)
+            !== UPLOAD_ERR_OK
+        ) {
+            continue;
+        }
+
+
+        /*
+         * Graph's simple sendMail JSON attachment
+         * should be kept small.
+         *
+         * 3 MB maximum per attachment.
+         */
+        if (
+            ($_FILES['attachments']['size'][$i] ?? 0)
+            > 3 * 1024 * 1024
+        ) {
+
+            respond(
+                false,
+                'Each attachment must be 3 MB or smaller.',
+                422
+            );
+        }
+
+
+        $tmp = $_FILES['attachments']['tmp_name'][$i];
+
+        $filename = basename(
+            (string)$_FILES['attachments']['name'][$i]
+        );
+
+
+        /*
+         * Make sure this is actually an uploaded file.
+         */
+        if (!is_uploaded_file($tmp)) {
+            continue;
+        }
+
+
+        /*
+         * Determine MIME type.
+         */
+        $mimeType = 'application/octet-stream';
+
+        if (function_exists('finfo_open')) {
+
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+            if ($finfo !== false) {
+
+                $detected = finfo_file(
+                    $finfo,
+                    $tmp
+                );
+
+                if ($detected !== false) {
+                    $mimeType = $detected;
+                }
+
+                finfo_close($finfo);
+            }
+        }
+
+
+        $attachments[] = [
+            'path' => $tmp,
+            'name' => $filename,
+            'type' => $mimeType,
+        ];
+    }
+}
+
+
+/*
+ * Send through Microsoft Graph.
  */
 try {
 
-    $mail = createMailer();
-
-
-    /*
-     * Recipient.
-     */
-    $mail->addAddress(
-        $to,
-        'Raven Fire Protection'
-    );
-
-
-    /*
-     * Allow Raven to reply directly to
-     * the person who submitted the form.
-     */
-    $mail->addReplyTo(
+    sendMicrosoftGraphEmail(
+        $subject,
+        $body,
         $email,
-        "{$first} {$last}"
+        $attachments
     );
-
-
-    /*
-     * Email settings.
-     */
-    $mail->Subject = $subject;
-    $mail->Body = $body;
-    $mail->isHTML(false);
-
-
-    /*
-     * Attachments.
-     */
-    if (
-        isset($_FILES['attachments']) &&
-        isset($_FILES['attachments']['name']) &&
-        is_array($_FILES['attachments']['name'])
-    ) {
-
-        $count = count($_FILES['attachments']['name']);
-
-        for ($i = 0; $i < $count; $i++) {
-
-            /*
-             * No file selected.
-             */
-            if (
-                ($_FILES['attachments']['error'][$i] ?? UPLOAD_ERR_NO_FILE)
-                === UPLOAD_ERR_NO_FILE
-            ) {
-                continue;
-            }
-
-
-            /*
-             * Ignore failed uploads.
-             */
-            if (
-                ($_FILES['attachments']['error'][$i] ?? null)
-                !== UPLOAD_ERR_OK
-            ) {
-                continue;
-            }
-
-
-            /*
-             * 15 MB maximum per attachment.
-             */
-            if (
-                ($_FILES['attachments']['size'][$i] ?? 0)
-                > 15 * 1024 * 1024
-            ) {
-                continue;
-            }
-
-
-            $tmp = $_FILES['attachments']['tmp_name'][$i];
-
-            $filename = basename(
-                (string)$_FILES['attachments']['name'][$i]
-            );
-
-
-            /*
-             * Make sure this is actually an uploaded file.
-             */
-            if (is_uploaded_file($tmp)) {
-
-                $mail->addAttachment(
-                    $tmp,
-                    $filename
-                );
-            }
-        }
-    }
-
-
-    /*
-     * Send email.
-     */
-    $mail->send();
 
 
     /*
@@ -400,9 +403,7 @@ try {
 } catch (Throwable $e) {
 
     /*
-     * Log the actual error on the server.
-     * Don't expose internal mailer details
-     * to the visitor.
+     * Log actual server-side error.
      */
     error_log(
         'Raven request service form error: ' .

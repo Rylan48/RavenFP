@@ -8,7 +8,4 @@ return [
     'from_email' => 'info@ravenfp.com',
     'from_name' => 'Raven Fire Protection',
     'recipient' => 'info@ravenfp.com',
-
-    'smtp_host' => 'smtp.office365.com',
-    'smtp_port' => 587,
 ];

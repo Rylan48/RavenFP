@@ -12,6 +12,7 @@ function respond(
     string $message,
     int $status = 200
 ): never {
+
     http_response_code($status);
 
     echo json_encode([
@@ -45,6 +46,7 @@ if (
     file_exists($limiterFile) &&
     (time() - filemtime($limiterFile)) < 1
 ) {
+
     respond(
         false,
         'Please wait a moment before submitting again.',
@@ -62,6 +64,7 @@ function clean(string $value): string
 {
     return trim(strip_tags($value));
 }
+
 
 $name = clean(
     (string)($_POST['name'] ?? '')
@@ -89,6 +92,7 @@ if (
     $subject === '' ||
     $message === ''
 ) {
+
     respond(
         false,
         'All fields are required.',
@@ -101,6 +105,7 @@ if (
  * Validate email address.
  */
 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
     respond(
         false,
         'Please enter a valid email address.',
@@ -130,32 +135,22 @@ TEXT;
 
 
 /*
- * Send through Microsoft 365 OAuth / PHPMailer.
+ * Send through Microsoft Graph.
  */
 try {
 
-    $mail = createMailer();
-
-    $mail->addAddress(
-        $config['recipient'],
-        'Raven Fire Protection'
+    sendMicrosoftGraphEmail(
+        $subject,
+        $body,
+        $email
     );
 
-    $mail->addReplyTo(
-        $email,
-        $name
-    );
-
-    $mail->Subject = $subject;
-    $mail->Body = $body;
-    $mail->isHTML(false);
-
-    $mail->send();
 
     respond(
         true,
         'Your message has been sent. Thank you!'
     );
+
 
 } catch (Throwable $e) {
 
@@ -163,6 +158,7 @@ try {
         'Raven contact form error: ' .
         $e->getMessage()
     );
+
 
     respond(
         false,

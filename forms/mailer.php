@@ -2,17 +2,11 @@
 
 declare(strict_types=1);
 
-use PHPMailer\PHPMailer\OAuthTokenProvider;
-use PHPMailer\PHPMailer\PHPMailer;
-
-require_once __DIR__ . '/../vendor/autoload.php';
-
 $config = require __DIR__ . '/mail-config.php';
 
 
 /**
- * Gets an OAuth access token from Microsoft Entra ID
- * using the application's client credentials.
+ * Get an OAuth access token for Microsoft Graph.
  */
 function getMicrosoftAccessToken(array $config): string
 {
@@ -34,7 +28,7 @@ function getMicrosoftAccessToken(array $config): string
     $postData = http_build_query([
         'client_id' => $clientId,
         'client_secret' => $clientSecret,
-        'scope' => 'https://outlook.office365.com/.default',
+        'scope' => 'https://graph.microsoft.com/.default',
         'grant_type' => 'client_credentials',
     ]);
 
@@ -66,8 +60,13 @@ function getMicrosoftAccessToken(array $config): string
 
     $data = json_decode($response, true);
 
-    if ($httpCode < 200 || $httpCode >= 300 || empty($data['access_token'])) {
-        $errorDescription = $data['error_description'] ?? 'Unknown OAuth error';
+    if (
+        $httpCode < 200 ||
+        $httpCode >= 300 ||
+        empty($data['access_token'])
+    ) {
+        $errorDescription =
+            $data['error_description'] ?? 'Unknown OAuth error';
 
         throw new RuntimeException(
             'Microsoft OAuth failed: ' . $errorDescription
@@ -79,59 +78,154 @@ function getMicrosoftAccessToken(array $config): string
 
 
 /**
- * Creates a configured PHPMailer instance.
+ * Send an email through Microsoft Graph.
+ *
+ * Attachments must be supplied as:
+ *
+ * [
+ *     [
+ *         'path' => '/tmp/example.pdf',
+ *         'name' => 'example.pdf',
+ *         'type' => 'application/pdf'
+ *     ]
+ * ]
  */
-function createMailer(): PHPMailer
-{
+function sendMicrosoftGraphEmail(
+    string $subject,
+    string $body,
+    string $replyTo,
+    array $attachments = []
+): void {
+
     global $config;
 
     $accessToken = getMicrosoftAccessToken($config);
 
-    $mail = new PHPMailer(true);
+    $message = [
+        'subject' => $subject,
 
-    $mail->isSMTP();
-    $mail->Host = $config['smtp_host'];
-    $mail->Port = $config['smtp_port'];
+        'body' => [
+            'contentType' => 'Text',
+            'content' => $body,
+        ],
 
-    $mail->SMTPAuth = true;
-    $mail->AuthType = 'XOAUTH2';
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        'toRecipients' => [
+            [
+                'emailAddress' => [
+                    'address' => $config['recipient'],
+                ],
+            ],
+        ],
 
-    $mail->setFrom(
-        $config['from_email'],
-        $config['from_name']
-    );
+        'replyTo' => [
+            [
+                'emailAddress' => [
+                    'address' => $replyTo,
+                ],
+            ],
+        ],
+    ];
+
 
     /*
-     * PHPMailer needs an OAuth token provider for XOAUTH2.
+     * Add file attachments.
      */
-    $mail->setOAuth(
-        new class(
-            $config['from_email'],
-            $accessToken
-        ) implements OAuthTokenProvider {
+    if (!empty($attachments)) {
 
-            private string $username;
-            private string $accessToken;
+        $message['attachments'] = [];
 
-            public function __construct(
-                string $username,
-                string $accessToken
-            ) {
-                $this->username = $username;
-                $this->accessToken = $accessToken;
+        foreach ($attachments as $attachment) {
+
+            $path = $attachment['path'] ?? '';
+            $name = $attachment['name'] ?? 'attachment';
+            $type = $attachment['type'] ?? 'application/octet-stream';
+
+            if (!is_file($path)) {
+                continue;
             }
 
-            public function getOauth64(): string
-            {
-                return base64_encode(
-                    'user=' . $this->username .
-                    "\001auth=Bearer " . $this->accessToken .
-                    "\001\001"
+            $content = file_get_contents($path);
+
+            if ($content === false) {
+                throw new RuntimeException(
+                    'Could not read attachment: ' . $name
                 );
             }
+
+            $message['attachments'][] = [
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'name' => $name,
+                'contentType' => $type,
+                'contentBytes' => base64_encode($content),
+            ];
         }
+    }
+
+
+    $payload = json_encode([
+        'message' => $message,
+        'saveToSentItems' => true,
+    ], JSON_THROW_ON_ERROR);
+
+
+    /*
+     * Microsoft Graph sendMail endpoint.
+     */
+    $url =
+        'https://graph.microsoft.com/v1.0/users/' .
+        rawurlencode($config['from_email']) .
+        '/sendMail';
+
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_RETURNTRANSFER => true,
+
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json',
+        ],
+
+        CURLOPT_TIMEOUT => 30,
+    ]);
+
+
+    $response = curl_exec($ch);
+
+    if ($response === false) {
+
+        $error = curl_error($ch);
+
+        curl_close($ch);
+
+        throw new RuntimeException(
+            'Microsoft Graph connection failed: ' . $error
+        );
+    }
+
+
+    $httpCode = curl_getinfo(
+        $ch,
+        CURLINFO_HTTP_CODE
     );
 
-    return $mail;
+    curl_close($ch);
+
+
+    /*
+     * Microsoft Graph returns 202 Accepted
+     * when sendMail is successfully accepted.
+     */
+    if ($httpCode < 200 || $httpCode >= 300) {
+
+        throw new RuntimeException(
+            'Microsoft Graph sendMail failed. HTTP ' .
+            $httpCode .
+            ': ' .
+            $response
+        );
+    }
 }
