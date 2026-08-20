@@ -7,7 +7,7 @@ starter-page.html
 blog-details.html
 blog.html
 services/
-vendor/
+/vendor/
 forms/mail-send-test.php
 forms/mail-test.php
 test-graph.php
