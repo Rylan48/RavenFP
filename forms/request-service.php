@@ -83,7 +83,6 @@ $details = clean((string)($_POST['details'] ?? ''));
  * Required fields.
  */
 $required = [
-    'service' => $service,
     'property_type' => $propertyType,
     'first_name' => $first,
     'last_name' => $last,

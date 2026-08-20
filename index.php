@@ -108,9 +108,11 @@
 
       <div class="container" data-aos="fade-up" data-aos-delay="100">
         <div class="row gy-4">
-          <!-- <div class="col-lg-6">
-            <img src="assets/img/about.jpg" class="img-fluid" alt="Fire Protection Img">
-          </div> -->
+
+          <div class="col-lg-6">
+            <img src="assets/img/Ira & Sumer at Farm 12 V1.jpg" class="img-fluid" alt="Fire Protection Img">
+          </div>
+
           <div class="col-lg-6 content">
             <h3>Who We Are</h3>
             <p>
